@@ -2,3 +2,4 @@
 sudo apt install build-essential ruby rubygems
 sudo gem install bundler
 sudo bundle install
+chmod +x ./urlfollow
