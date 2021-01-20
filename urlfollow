@@ -1,0 +1,111 @@
+#!/usr/bin/ruby
+require "tty-option"
+require "tty-logger"
+require "net/http"
+require "addressable/uri"
+
+SCHEMES = %w(http https)
+
+def valid_url? (url)
+  parsed = Addressable::URI.parse(url) or return false
+  SCHEMES.include?(parsed.scheme)
+rescue Addressable::URI::InvalidURIError
+  false
+end
+
+def follow (url, verbose)
+  logger = TTY::Logger.new do |config|
+    config.metadata = [:time]
+  end
+
+  if !valid_url? url
+    logger.error "URL format: http://example.com"
+    exit
+  end
+
+  loop do
+    response = Net::HTTP.get_response URI(url)
+
+    if response.code.to_i == 404
+      logger.warn "Not Found"
+      if verbose
+        logger.warn "Code: #{response.code}"
+      end
+      exit
+    end
+
+    if verbose
+      logger.info "Code: #{response.code}"
+      logger.info "Msg : #{response.message}"
+    end
+
+
+    if !response["location"].nil?
+      url = response["location"]
+      if verbose
+        logger.info "Followed: #{url}"
+      end
+    else
+      logger.success "Final: #{url}"
+      break
+    end
+  end
+  rescue SocketError
+    logger.error "Invalid URL"
+    exit
+  rescue Errno::ECONNREFUSED
+    logger.error "Invalid URL"
+    exit
+end
+
+class URL_Folow
+  include TTY::Option
+
+  usage do
+    program "urlfollow"
+
+    command ""
+
+    desc "Follow a given shortened URL"
+
+    example "Follow one URL",
+            "  $ urlfollow http://bit.ly/1JSs7vj"
+
+    example "Using verbose output",
+            "  $ urlfollow -v http://bit.ly/1JSs7vj"
+  end
+
+  argument :url do
+    required
+    desc "The URL to start following"
+  end
+
+  option :verbose do
+    optional
+    short "-v"
+    long  "--verbose"
+    desc  "Output more debugging information"
+  end
+
+  flag :help do
+    short "-h"
+    long  "--help"
+    desc  "Print usage"
+  end
+
+  def run
+    if params[:url].nil?
+      print help
+      exit
+    elsif params[:help]
+      print help
+      exit
+    else
+      follow params[:url], params[:verbose]
+    end
+  end
+end
+
+main = URL_Folow.new
+main.parse()
+main.run
