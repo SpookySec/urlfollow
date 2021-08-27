@@ -50,10 +50,7 @@ def follow (url, verbose)
       break
     end
   end
-  rescue SocketError
-    logger.error "Invalid URL"
-    exit
-  rescue Errno::ECONNREFUSED
+  rescue SocketError Errno::ECONNREFUSED
     logger.error "Invalid URL"
     exit
 end
